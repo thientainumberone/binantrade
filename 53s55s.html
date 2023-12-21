@@ -1,0 +1,273 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Binance Trades 53s</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12 text-right">Version 1.1.8</div>
+      </div>
+      <div class="row">
+        <div class="col-sm-4 d-none">
+          <h3 class="text-success bold">Buy Order</h3>
+          <div class="alert alert-success">
+            Total (<span class="current-sencond"></span>):
+            <strong id="total-buy-order"></strong>
+          </div>
+          <table class="table table-bordered" id="buy-order">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Amount (BTC)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="col-sm-4 d-none">
+          <h3 class="text-danger bold">Sell Order</h3>
+          <div class="alert alert-danger">
+            Total (<span class="current-sencond"></span>):
+            <strong id="total-sell-order"></strong>
+          </div>
+          <table class="table table-bordered" id="sell-order">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Amount (BTC)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="col-sm-4">
+          <h3 class="text-primary bold">Trades 53s55s reset</h3>
+          <div class="alert alert-primary">
+            Total current seconds: <span class="current-sencond-trade"></span>
+            <strong id="total-trade"></strong>
+          </div>
+          <div class="d-flex bg-secondary text-white">
+            <div
+              class="p-2 bg-success flex-fill total-trade-buy text-center"
+            ></div>
+            <div
+              class="p-2 bg-danger flex-fill total-trade-sell text-center"
+            ></div>
+            <div
+              class="p-2 bg-warning flex-fill total-trade-result text-center"
+            ></div>
+            <div>53s rs</div>
+          </div>
+          <div class="alert alert-primary" style="margin-top: 15px">
+            Current time: <span class="current-minutes-trade-2"></span>
+            <strong id="total-trade-2"></strong>
+          </div>
+          <div class="d-flex bg-secondary text-white" style="margin: 15px 0">
+            <div
+              class="p-2 bg-success flex-fill total-trade-buy-2 text-center"
+            ></div>
+            <div
+              class="p-2 bg-danger flex-fill total-trade-sell-2 text-center"
+            ></div>
+            <div
+              class="p-2 bg-warning flex-fill total-trade-result-2 text-center"
+            ></div>
+            <div>55s rs</div>
+          </div>
+          <table class="table table-bordered d-none" id="trades">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Amount (BTC)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <script type="text/javascript">
+      runSocketDepth();
+      runSocketTrade();
+      function runSocketDepth() {
+        if ("WebSocket" in window) {
+          // socket depth
+          var ws = new WebSocket(
+            "wss://stream.binance.com:9443/ws/btcusdt@depth"
+          );
+          var totalBuy = 0;
+          var totalSell = 0;
+
+          ws.onmessage = function ({ data }) {
+            var { E, b, a, ...dt } = JSON.parse(data);
+
+            var time = formatDate(E);
+
+            var newBids = b.filter((item, index) => index < b.length - 2);
+            var newAsks = a.filter((item, index) => index < a.length - 2);
+            var totalAmountBuy = calculateTotalAmount(newBids);
+            var totalAmountSell = calculateTotalAmount(newAsks);
+            $("#buy-order tbody").prepend(
+              "<tr><td>" + time + "</td><td>" + totalAmountBuy + "</td></tr>"
+            );
+            $("#sell-order tbody").prepend(
+              "<tr><td>" + time + "</td><td>" + totalAmountSell + "</td></tr>"
+            );
+
+            var obj = isValidTime(E);
+            if (obj.isValid) {
+              totalBuy += parseFloat(totalAmountBuy);
+              totalSell += parseFloat(totalAmountSell);
+              $("#total-sell-order").html(totalSell.toFixed(5) + " BTC");
+              $("#total-buy-order").html(totalBuy.toFixed(5) + " BTC");
+              $(".current-sencond").html(obj.second + "s");
+            }
+
+            if (obj.second == 59) {
+              totalBuy = 0;
+              totalSell = 0;
+              $("#sell-order tbody").html("");
+              $("#buy-order tbody").html("");
+            }
+          };
+        } else {
+          // The browser doesn't support WebSocket
+          alert("WebSocket NOT supported by your Browser!");
+        }
+      }
+
+      function calculateTotalAmount(arr) {
+        var total = 0;
+        arr.forEach((item) => {
+          total += parseFloat(item[1]);
+        });
+        return total.toFixed(5);
+      }
+
+      function formatDate(time) {
+        var d = new Date(time);
+
+        var h = d.getHours();
+        h = h < 10 ? "0" + h : h;
+
+        var m = d.getMinutes();
+        m = m < 10 ? "0" + m : m;
+
+        var s = d.getSeconds();
+        s = s < 10 ? "0" + s : s;
+        return h + ":" + m + ":" + s;
+      }
+
+      function isValidTime(time) {
+        var d = new Date(time);
+        return {
+          isValid: d.getSeconds() < 59,
+          second: d.getSeconds(),
+        };
+      }
+
+      function isValidTime2(time) {
+        var d = new Date(time);
+        var second = d.getSeconds();
+        var minutes = d.getMinutes();
+        var hour = d.getHours();
+        return {
+          isValid: true,
+          minutes: minutes < 10 ? "0" + minutes : minutes,
+          second: second < 10 ? "0" + second : second,
+          hour: hour < 10 ? "0" + hour : hour,
+        };
+      }
+
+      function runSocketTrade() {
+        if ("WebSocket" in window) {
+          // socket depth
+          var ws = new WebSocket(
+            "wss://stream.binance.com:9443/ws/btcusdt@trade"
+          );
+          var totalTradeSell = 0;
+          var totalTradeBuy = 0;
+
+          var totalTradeSell2 = 0;
+          var totalTradeBuy2 = 0;
+          ws.onmessage = function ({ data }) {
+            var { T, p, q, m } = JSON.parse(data); // m: true => SELL, m: false => BUY
+            var time = formatDate(T);
+            var colorText = m ? "text-danger" : "text-success";
+            /*
+            $("#trades tbody").prepend(
+              "<tr class='" +
+                colorText +
+                "'><td>" +
+                time +
+                "</td><td>" +
+                q +
+                "</td></tr>"
+            );
+            */
+            var obj = isValidTime(T);
+            if (obj.isValid) {
+              if (m) {
+                totalTradeSell += parseFloat(q);
+              } else {
+                totalTradeBuy += parseFloat(q);
+              }
+
+              $(".total-trade-buy").html(totalTradeBuy.toFixed(5));
+              $(".total-trade-sell").html(totalTradeSell.toFixed(5));
+              $(".total-trade-result").html(
+                totalTradeBuy > totalTradeSell ? "BUY" : "SELL"
+              );
+              $(".current-sencond-trade").html(obj.second + "s");
+            }
+
+            var obj2 = isValidTime2(T);
+            $(".current-minutes-trade-2").html(
+              obj2.hour + ":" + obj2.minutes + ":" + obj2.second
+            );
+            if (obj2.isValid) {
+              if (m) {
+                totalTradeSell2 += parseFloat(q);
+              } else {
+                totalTradeBuy2 += parseFloat(q);
+              }
+
+              $(".total-trade-buy-2").html(totalTradeBuy2.toFixed(5));
+              $(".total-trade-sell-2").html(totalTradeSell2.toFixed(5));
+              $(".total-trade-result-2").html(
+                totalTradeBuy2 > totalTradeSell2 ? "BUY" : "SELL"
+              );
+            }
+            if (obj2.second == 56) {
+              totalTradeSell2 = 0;
+              totalTradeBuy2 = 0;
+            }
+
+            if (obj.second == 54) {
+              totalTradeSell = 0;
+              totalTradeBuy = 0;
+
+              $("#trades tbody").html("");
+            }
+          };
+        } else {
+          // The browser doesn't support WebSocket
+          alert("WebSocket NOT supported by your Browser!");
+        }
+      }
+    </script>
+  </body>
+</html>
